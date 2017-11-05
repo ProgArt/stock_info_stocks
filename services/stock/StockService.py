@@ -19,3 +19,11 @@ class StockService(object):
 	@staticmethod
 	def getAllStockCategoryModels():
 		return StockStorage.getAllStockCategoryModels()
+
+	@staticmethod
+	def getAllFailedDailyStockBaseModels(date):
+		return StockStorage.getAllFailedDailyStockBaseModels(date)
+
+	@staticmethod
+	def getAllFailedDailyTradeStockBaseModels(date):
+		return StockStorage.getAllFailedDailyTradeStockBaseModels(date)

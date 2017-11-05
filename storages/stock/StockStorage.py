@@ -54,6 +54,41 @@ class StockStorage(BaseStorage):
 			return l
 
 	@staticmethod
+	def getAllFailedDailyStockBaseModels(date):
+		l = []
+		cursor = BaseStorage.db.cursor();
+		try:
+			sql = 'select * from stocks where id not in (select distinct stockid from stocks_daily where tradedate = "%s")' % date
+			print sql
+			cursor.execute(sql)
+			rows = cursor.fetchall()
+			for row in rows:
+				stockBaseModel = StockBaseModel(row[0], row[1], row[2], row[3])
+				l.append(stockBaseModel)
+		except Exception, e:
+			raise e
+		finally:
+			cursor.close()
+			return l
+
+	@staticmethod
+	def getAllFailedDailyTradeStockBaseModels(date):
+		l = []
+		cursor = BaseStorage.db.cursor();
+		try:
+			cursor.execute('select * from stocks where id not in (select distinct stockid from stock_trades where tradetime like "%s%%")' % date)
+			rows = cursor.fetchall()
+			for row in rows:
+				stockBaseModel = StockBaseModel(row[0], row[1], row[2], row[3])
+				l.append(stockBaseModel)
+		except Exception, e:
+			raise e
+		finally:
+			cursor.close()
+			return l
+
+
+	@staticmethod
 	def saveStockModel(stockModel):
 		cursor = BaseStorage.db.cursor()
 		try:
@@ -61,16 +96,16 @@ class StockStorage(BaseStorage):
 				averagePrice, high, low, tradeVolume, tradeValue, turnoverRate, marketValue, \
 				circulationValue, pb, pe, buyVolume, sellVolume, amountRatio, entrustRatio, \
 				superFlowIn, superFlowOut, bigFlowIn, bigFlowOut, middleFlowIn, middleFlowOut, \
-				littleFlowIn, littleFlowOut, updateDate) values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, \
+				littleFlowIn, littleFlowOut, tradeDate) values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, \
 				%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "%s")'
 			cursor.execute(sql % (stockModel.stockId, stockModel.openPrice, stockModel.yesterdayClosePrice,
 				stockModel.curPrice, stockModel.averagePrice, stockModel.high, stockModel.low,
 				stockModel.tradeVolume, stockModel.tradeValue, stockModel.turnoverRate, stockModel.marketValue,
-				stockModel.circulationValue, stockModel.pb, stockModel.pe, stockModel.buyVolume, 
+				stockModel.circulationValue, stockModel.pb, stockModel.pe, stockModel.buyVolume,
 				stockModel.sellVolume, stockModel.amountRatio, stockModel.entrustRatio,
-				stockModel.superFlowIn, stockModel.superFlowOut, stockModel.bigFlowIn, stockModel.bigFlowOut, 
-				stockModel.middleFlowIn, stockModel.middleFlowOut, stockModel.littleFlowIn, 
-				stockModel.littleFlowOut, stockModel.updateDate))
+				stockModel.superFlowIn, stockModel.superFlowOut, stockModel.bigFlowIn, stockModel.bigFlowOut,
+				stockModel.middleFlowIn, stockModel.middleFlowOut, stockModel.littleFlowIn,
+				stockModel.littleFlowOut, stockModel.tradeDate))
 			BaseStorage.db.commit()
 		except Exception, e:
 			BaseStorage.db.rollback()
@@ -122,20 +157,21 @@ class StockStorage(BaseStorage):
 		finally:
 			cursor.close()
 			pass
-	
+
 	@staticmethod
-	def saveStockTradeModel(stockTradeModel):
-		"""保存股票交易数据"""	
+	def saveStockTradeModels(stockTradeModels):
+		"""保存股票交易数据"""
 		cursor = BaseStorage.db.cursor()
 		try:
-		    cursor.execute('insert into stock_trades(stockId, tradeTime, tradePrice, tradeVolume, trend) values(%s, "%s", %s, %s, %s)' \
-		    		 % (stockTradeModel.stockId, stockTradeModel.tradeTime, stockTradeModel.tradePrice, \
-		    		 	stockTradeModel.tradeVolume, stockTradeModel.trend))
-		    BaseStorage.db.commit()
+			sql = 'insert into stock_trades(stockId, tradeTime, tradePrice, tradeVolume, trend) values'
+			for stockTradeModel in stockTradeModels:
+				sql += '(%s, "%s", %s, %s, %s),' % (stockTradeModel.stockId, stockTradeModel.tradeTime, stockTradeModel.tradePrice, stockTradeModel.tradeVolume, stockTradeModel.trend)
+			sql = sql[:-1]
+			cursor.execute(sql)
+			BaseStorage.db.commit()
 		except Exception, e:
 			BaseStorage.db.rollback()
 			raise e
 		finally:
 			cursor.close()
 			pass
-

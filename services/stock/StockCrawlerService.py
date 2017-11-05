@@ -28,8 +28,8 @@ class StockCrawlerService(object):
 			for row in rows:
 				matches = pattern.match(row)
 				if matches:
-					# 去年基金、证券等非股票代码
-					stockCode = macthes.group(3).decode('gbk')
+					# 去掉基金、证券等非股票代码
+					stockCode = matches.group(3).decode('gbk')
 					if stockCode.startswith('600') or stockCode.startswith('601') or stockCode.startswith('603') \
 									or stockCode.startswith('002') or stockCode.startswith('300') or stockCode.startswith('000'):
 						stockBaseModel = StockBaseModel(None, matches.group(3), matches.group(2).decode('gbk').encode('utf-8'), matches.group(1))
@@ -63,23 +63,24 @@ class StockCrawlerService(object):
 			if matches:
 				stockModel = StockModel.stockModelFromList(matches.group(1).split(','))
 				stockModel.stockId = stockBaseModel.id
-				stockModel.updateDate = date
+				stockModel.tradeDate = date
 
 				try:
-					url2 = 'http://hqchart.eastmoney.com/hq20/js/%s.js?202224' % (stockBaseModel.stockCode)
+					url2 = 'http://nufm.dfcfw.com/EM_Finance2014NumericApplication/JS.aspx?' \
+						'type=CT&cmd=%s&sty=DCFF&st=z&sr=&p=&ps=&cb=&js=var%%20zjlx_detail=(x)&token=7bc05d0d4c3c22ef9fca8c2a912d779c' % (stockBaseModel.getEastMoneyStockCode())
 					response2 = urllib2.urlopen(urllib2.Request(url2)).read()
-					pattern2 = re.compile(r'var zjlx_detail=\{data\:\"(.*)\",update.*')
+					pattern2 = re.compile(r'var zjlx_detail="(.*)"')
 					matches2 = pattern2.search(response2)
 					if matches2:
 						list = matches2.group(1).split(',')
-						stockModel.superFlowIn = float(list[12])
-						stockModel.superFlowOut = float(list[13])
-						stockModel.bigFlowIn = float(list[14])
-						stockModel.bigFlowOut = float(list[15])
-						stockModel.middleFlowIn = float(list[16])
-						stockModel.middleFlowOut = float(list[17])
-						stockModel.littleFlowIn = float(list[18])
-						stockModel.littleFlowOut = float(list[19])
+						stockModel.superFlowIn = float(list[4])
+						stockModel.superFlowOut = float(list[5])
+						stockModel.bigFlowIn = float(list[6])
+						stockModel.bigFlowOut = float(list[7])
+						stockModel.middleFlowIn = float(list[8])
+						stockModel.middleFlowOut = float(list[9])
+						stockModel.littleFlowIn = float(list[10])
+						stockModel.littleFlowOut = float(list[11])
 
 						StockStorage.saveStockModel(stockModel)
 						logger.info('stock %s daily model fetched successfully' % stockBaseModel.stockCode)
@@ -89,7 +90,7 @@ class StockCrawlerService(object):
 					logger.error('%s - %s' % (stockBaseModel.stockCode, e))
 				finally:
 					pass
-								
+
 		except urllib2.HTTPError, e:
 			logger.error('%s - %s' % (stockBaseModel.stockCode, e))
 		except Exception, e:
@@ -174,19 +175,22 @@ class StockCrawlerService(object):
 			totalPages = 0
 			while True:
 				response = urllib2.urlopen(urllib2.Request(url % (stockBaseModel.getEastMoneyStockCode(), page))).read()
-
 				pattern = re.compile(r'var jsTimeSharingData=\{pages\:(\d+),data\:\[(.*)\]\};')
 				matches = pattern.match(response)
 
 				if matches and matches.group(2):
 					totalPages = int(matches.group(1))
 					rows = matches.group(2)[1:len(matches.group(2))-1].split('","')
+					tradeModels = []
 					for row in rows:
 						if row:
 							metas = row.split(',')
 							stockTradeModel = StockTradeModel(None, stockBaseModel.id, date + metas[0], float(metas[1]), int(metas[2]), int(metas[3]))
-							StockStorage.saveStockTradeModel(stockTradeModel)
+							tradeModels.append(stockTradeModel)
 
+					StockStorage.saveStockTradeModels(tradeModels)
+
+				logger.info('stock %s daily trade model at page %d/%d fetched successfully' % (stockBaseModel.stockCode, page, totalPages))
 				if page < totalPages:
 					page = page + 1
 				else:

@@ -33,7 +33,7 @@ class StockModel(BaseModel):
 		self.middleFlowOut = 0					# 中单流出
 		self.littleFlowIn = 0					# 小单流入
 		self.littleFlowOut = 0					# 小单流出
-		self.updateDate = None					# 股票数据更新日期
+		self.tradeDate = None					# 股票交易日期
 
 	@staticmethod
 	def stockModelFromList(list):
